@@ -1,0 +1,39 @@
+name: Push to registries
+
+on:
+  push:
+    branches: [ "main" ]
+    tags: [ 'v*.*.*' ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build-amd64:
+    uses: ./.github/workflows/_build.yaml
+    permissions:
+        contents: read
+        packages: write
+        id-token: write
+    with:
+      image-name-dockerhub: bobaklabs/kubeseal-helper
+      image-name-github: tscrond/kubeseal-helper
+      arch: "linux/amd64"
+    secrets:
+        docker-hub-username: ${{ secrets.DOCKERHUB_USERNAME }}
+        docker-hub-token: ${{ secrets.DOCKERHUB_TOKEN }}
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+  build-arm64:
+    uses: ./.github/workflows/_build.yaml
+    permissions:
+        contents: read
+        packages: write
+        id-token: write
+    with:
+      image-name-dockerhub: bobaklabs/kubeseal-helper
+      image-name-github: tscrond/kubeseal-helper
+      runner-name: arm64-runner
+      arch: "linux/arm64"
+    secrets:
+        docker-hub-username: ${{ secrets.DOCKERHUB_USERNAME }}
+        docker-hub-token: ${{ secrets.DOCKERHUB_TOKEN }}
+        github-token: ${{ secrets.GITHUB_TOKEN }}

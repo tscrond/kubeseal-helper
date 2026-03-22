@@ -79,6 +79,9 @@ kubeseal-helper from-file -f secrets.yaml
 
 ### Secrets file format
 
+> IMPORTANT!!!
+> Keep the secret configs with plain text passwords away from ANY version control system, ideally - store them in a password manager or use encryption
+
 ```yaml
 # Optional: override kubeContext / controller settings for this file
 kubeContext: "my-context"
@@ -149,6 +152,28 @@ Place a file at `~/.kubeseal-helper.yaml`:
 kubeContext: "my-context"
 controllerName: "sealed-secrets"
 controllerNamespace: "kube-system"
+```
+
+You can also merge the config file with different secrets YAML configurations (see [secret-example.yaml](./examples/secret-example.yaml)):
+```
+kubeContext: "bl-prod"
+controllerName: "sealed-secrets"
+controllerNamespace: "kube-system"
+secrets:
+  - name: secret1
+    namespace: "apps"
+    type: Opaque
+    data:
+      - key: GOOGLE_COOKIE_SECRET
+        value: "cookie-secret"
+      - key: DB_SECRET
+        value: "asodfpasdf"
+  - name: secret2
+    type: Opaque
+    namespace: "apps"
+    data:
+      - key: bucket-config.json
+        valueFromFile: "/home/tskr/wazne/bucket-auth.json"
 ```
 
 ### Environment variables

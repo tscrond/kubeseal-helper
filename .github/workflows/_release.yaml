@@ -1,0 +1,96 @@
+name: Reusable GitHub Release
+
+on:
+  workflow_call:
+    inputs:
+      arm64-runner-name:
+        required: false
+        type: string
+        default: arm64-runner
+      binary-name:
+        required: false
+        type: string
+        default: kubeseal-helper
+
+jobs:
+  build-binaries:
+    name: Build release asset (${{ matrix.goos }}/${{ matrix.goarch }})
+    runs-on: ${{ matrix.runner }}
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - goos: linux
+            goarch: amd64
+            runner: ubuntu-latest
+          - goos: linux
+            goarch: arm64
+            runner: ${{ inputs.arm64-runner-name }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Build release archive
+        env:
+          BINARY_NAME: ${{ inputs.binary-name }}
+          GOARCH: ${{ matrix.goarch }}
+          GOOS: ${{ matrix.goos }}
+          VERSION: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+
+          asset_name="${BINARY_NAME}_${VERSION}_${GOOS}_${GOARCH}"
+          package_dir="dist/${asset_name}"
+
+          mkdir -p "${package_dir}"
+
+          CGO_ENABLED=0 go build -trimpath -o "${package_dir}/${BINARY_NAME}" .
+
+          cp README.md LICENSE "${package_dir}/"
+
+          tar -C dist -czf "dist/${asset_name}.tar.gz" "${asset_name}"
+          sha256sum "dist/${asset_name}.tar.gz" > "dist/${asset_name}.tar.gz.sha256"
+
+          rm -rf "${package_dir}"
+
+      - name: Upload release asset
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-assets-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: |
+            dist/*.tar.gz
+            dist/*.sha256
+          if-no-files-found: error
+          retention-days: 1
+
+  publish-release:
+    name: Publish GitHub release
+    runs-on: ubuntu-latest
+    needs: build-binaries
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download release assets
+        uses: actions/download-artifact@v4
+        with:
+          pattern: release-assets-*
+          path: dist
+          merge-multiple: true
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          fail_on_unmatched_files: true
+          files: dist/*
+          generate_release_notes: true
